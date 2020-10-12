@@ -70,7 +70,7 @@ def tinyMazeSearch(problem):
     from game import Directions
     s = Directions.SOUTH
     w = Directions.WEST
-    return  [s, s, w, s, w, w, s, w]
+    return [s, s, w, s, w, w, s, w]
 
 def depthFirstSearch(problem):
     """
@@ -82,17 +82,44 @@ def depthFirstSearch(problem):
     To get started, you might want to try some of these simple commands to
     understand the search problem that is being passed in:
     """
+    #
+    # print("Start:", problem.getStartState())
+    # print("Is the start a goal?", problem.isGoalState(problem.getStartState()))
+    # print("Start's successors:", problem.getSuccessors(problem.getStartState()))
+    #
+    #
+    # "*** YOUR CODE HERE ***"
 
-    print("Start:", problem.getStartState())
-    print("Is the start a goal?", problem.isGoalState(problem.getStartState()))
-    print("Start's successors:", problem.getSuccessors(problem.getStartState()))
+    startingNode = problem.getStartState()
+    if problem.isGoalState(startingNode):
+        return []
 
-    "*** YOUR CODE HERE ***"
-
-    stack = util.Stack
+    #Create a stack for DFS.
+    stack = util.Stack()
+    #Create a list to keep track of explored/visited nodes.
     visited = []
+    #Begining node of the graph.
+    start = (startingNode, [])
+    stack.push(start)
 
+    """ 
+    visit current node if is not explored before and find its
+    children (push those into the stack) 
+    """
 
+    while not stack.isEmpty():
+        # currentNode, actions = stack.pop()
+        element = stack.pop()
+        location = element[0]
+        path = element[1]
+
+        if location not in visited:
+            visited.append(location)
+            if problem.isGoalState(location):
+                return path
+
+            for nextElement in problem.getSuccessors(location):
+                stack.push((nextElement[0], path + [nextElement[1]]))
     util.raiseNotDefined()
 
 def breadthFirstSearch(problem):
