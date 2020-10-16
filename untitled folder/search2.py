@@ -183,7 +183,13 @@ def nullHeuristic(state, problem=None):
     """
     return 0
 
-def aStarSearchHelper(problem, heuristic, pq):
+def aStarSearch(problem, heuristic=nullHeuristic):
+    """Search the node that has the lowest combined cost and heuristic first."""
+    startingNode = problem.getStartState()
+    if problem.isGoalState(startingNode):
+        return []
+    pq = util.PriorityQueue()
+    pq.push((startingNode, [], 0), 0)
     explored = {}
     while pq.isEmpty() == False:
         top = pq.pop()
@@ -194,17 +200,8 @@ def aStarSearchHelper(problem, heuristic, pq):
             for next in problem.getSuccessors(top[0]):
                 newAction = top[1] + [next[1]]
                 cost = top[2] + next[2]
-                heuristicCost = cost + heuristic(next[0],problem)
-                pq.push((next[0], newAction, cost), heuristicCost)
-
-def aStarSearch(problem, heuristic=nullHeuristic):
-    """Search the node that has the lowest combined cost and heuristic first."""
-    startingNode = problem.getStartState()
-    if problem.isGoalState(startingNode):
-        return []
-    pq = util.PriorityQueue()
-    pq.push((startingNode, [], 0), 0)
-    return aStarSearchHelper(problem, heuristic, pq)
+                hCost = cost + heuristic(next[0],problem)
+                pq.push((next[0], newAction, cost),hCost)
 
 def randomyu(problem, heuristic=nullHeuristic):
     pQueue = util.PriorityQueue()

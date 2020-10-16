@@ -313,7 +313,10 @@ class CornersProblem(search.SearchProblem):
         """
         Returns whether this search state is a goal state of the problem.
         """
-        return (len(state[1]) == 0)
+        if len(state[1]) == 0:
+            return True
+        else:
+            return False
 
     def getSuccessors(self, state):
         """
@@ -327,7 +330,7 @@ class CornersProblem(search.SearchProblem):
         """
 
         successors = []
-        for d in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
+        for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
             # Add a successor state to the successor list if the action is legal
             # Here's a code snippet for figuring out whether a new position hits a wall:
             #   x,y = currentPosition
@@ -337,19 +340,22 @@ class CornersProblem(search.SearchProblem):
 
             "*** YOUR CODE HERE ***"
             x, y = state[0]
-            dx, dy = Actions.directionToVector(d)
-            nx = int(x + dx)
-            ny = int(y + dy)
-            hitsWall = self.walls[nx][ny]
+            dx, dy = Actions.directionToVector(action)
+            nextx = int(x + dx)
+            nexty = int(y + dy)
+            hitsWall = self.walls[nextx][nexty]
 
             # Initialise list to store a list of corners
             corner_list = list()
             if not hitsWall:
+                new_position = (nextx, nexty)
                 for val in state[1]:
-                    if val != (nx, ny):
+                    # Consider the value of state in corners data only if it is not same as new coordinates nextx and nexty
+                    if val != new_position:
                         corner_list.append(val)
-                nextSuccessor = (((nx, ny), tuple(corner_list)), d, 1)
-                successors.append(nextSuccessor)
+                new_corners = tuple(corner_list)
+                next_successor = ((new_position, new_corners), action, 1)
+                successors.append(next_successor)
 
         self._expanded += 1  # DO NOT CHANGE
         return successors
@@ -382,28 +388,41 @@ def cornersHeuristic(state, problem):
     shortest path from the state to a goal of the problem; i.e.  it should be
     admissible (as well as consistent).
     """
-    corners = problem.corners
-    walls = problem.walls
+    corners = problem.corners  # These are the corner coordinates
+    walls = problem.walls  # These are the walls of the maze, as a Grid (game.py)
 
     "*** YOUR CODE HERE ***"
-    distance = 0
-    currentPosition = state[0]
+    total_distance = 0
+    current_position = state[0]
     corners = state[1]
     while len(corners) > 0:
+
+        if len(corners) == 0:
+            return None
+
         points = list()
-        minCost = 1000000
-        for x in corners:
-            cost = util.manhattanDistance(currentPosition, x)
-            if minCost > cost:
+        min_cost = 1000000
+
+        for corner in corners:
+            # Find corner with minimum cost from current position using Manhattan Distance
+            cost = util.manhattanDistance(current_position, corner)
+            if min_cost > cost:
                 points.clear()
-                points.append(x)
-                minCost = cost
-        distance = distance + util.manhattanDistance(currentPosition, points[0])
-        currentPosition = points[0]
-        cornersList = list(corners)
-        cornersList.remove(points[0])
-        corners = tuple(cornersList)
-    return distance
+                points.append(corner)
+                min_cost = cost
+
+        new_corner = points[0]
+        # update the total distance with the corner having minimum cost
+        total_distance += util.manhattanDistance(current_position, new_corner)
+        current_position = new_corner
+
+        corners_list = list()
+        for val in corners:
+            if val != new_corner:
+                corners_list.append(val)
+
+        corners = tuple(corners_list)
+    return total_distance
 
 class AStarCornersAgent(SearchAgent):
     "A SearchAgent for FoodSearchProblem using A* and your foodHeuristic"
@@ -438,18 +457,17 @@ class FoodSearchProblem:
 
     def getSuccessors(self, state):
         "Returns successor states, the actions they require, and a cost of 1."
-        ret = []
+        successors = []
         self._expanded += 1  # DO NOT CHANGE
-        for d in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
+        for direction in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
             x, y = state[0]
-            dx, dy = Actions.directionToVector(d)
-            nextx = int(x + dx)
-            nexty = int(y + dy)
+            dx, dy = Actions.directionToVector(direction)
+            nextx, nexty = int(x + dx), int(y + dy)
             if not self.walls[nextx][nexty]:
                 nextFood = state[1].copy()
                 nextFood[nextx][nexty] = False
-                ret.append((((nextx, nexty), nextFood), d, 1))
-        return ret
+                successors.append((((nextx, nexty), nextFood), direction, 1))
+        return successors
 
     def getCostOfActions(self, actions):
         """Returns the cost of a particular sequence of actions.  If those actions
@@ -504,12 +522,15 @@ def foodHeuristic(state, problem):
     """
     position, foodGrid = state
     "*** YOUR CODE HERE ***"
-    distance = 0
+    distance = []
     for i in range(foodGrid.height):
         for j in range(foodGrid.width):
+            #        print(foodGrid[j][i], j, i, position)
             if foodGrid[j][i]:
-                distance = max(distance, mazeDistance((j, i), position, problem.startingGameState))
-    return distance
+                distance.append(mazeDistance((j, i), position, problem.startingGameState))
+    if len(distance) == 0:
+        return 0
+    return max(distance)
 
 
 class ClosestDotSearchAgent(SearchAgent):
@@ -542,17 +563,18 @@ class ClosestDotSearchAgent(SearchAgent):
         problem = AnyFoodSearchProblem(gameState)
 
         "*** YOUR CODE HERE ***"
-        minDis = 1000000000
-        g = []
-        for i in range(0, food.height):
-            for j in range(0, food.width):
-                if food[j][i] == True:
-                    tmpDis = mazeDistance((j, i), startPosition, gameState)
-                    if tmpDis < minDis:
-                        minDis = tmpDis
-                        g = [j, i]
-        p = PositionSearchProblem(gameState, start=startPosition, goal=tuple(g), warn=False, visualize=False)
-        return search.bfs(p)
+        min_distance = 1000000
+        point = []
+        for i in range(food.height):
+            for j in range(food.width):
+                if food[j][i]:
+                    distance = mazeDistance((j, i), startPosition, gameState)
+                    if distance < min_distance:
+                        point.clear()
+                        min_distance = distance
+                        point = [j, i]
+        prob = PositionSearchProblem(gameState, start=startPosition, goal=tuple(point), warn=False, visualize=False)
+        return search.bfs(prob)
 
 class AnyFoodSearchProblem(PositionSearchProblem):
     """

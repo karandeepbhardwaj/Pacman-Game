@@ -327,7 +327,7 @@ class CornersProblem(search.SearchProblem):
         """
 
         successors = []
-        for d in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
+        for action in [Directions.NORTH, Directions.SOUTH, Directions.EAST, Directions.WEST]:
             # Add a successor state to the successor list if the action is legal
             # Here's a code snippet for figuring out whether a new position hits a wall:
             #   x,y = currentPosition
@@ -337,19 +337,22 @@ class CornersProblem(search.SearchProblem):
 
             "*** YOUR CODE HERE ***"
             x, y = state[0]
-            dx, dy = Actions.directionToVector(d)
-            nx = int(x + dx)
-            ny = int(y + dy)
-            hitsWall = self.walls[nx][ny]
+            dx, dy = Actions.directionToVector(action)
+            nextx = int(x + dx)
+            nexty = int(y + dy)
+            hitsWall = self.walls[nextx][nexty]
 
             # Initialise list to store a list of corners
             corner_list = list()
             if not hitsWall:
+                new_position = (nextx, nexty)
                 for val in state[1]:
-                    if val != (nx, ny):
+                    # Consider the value of state in corners data only if it is not same as new coordinates nextx and nexty
+                    if val != new_position:
                         corner_list.append(val)
-                nextSuccessor = (((nx, ny), tuple(corner_list)), d, 1)
-                successors.append(nextSuccessor)
+                new_corners = tuple(corner_list)
+                next_successor = ((new_position, new_corners), action, 1)
+                successors.append(next_successor)
 
         self._expanded += 1  # DO NOT CHANGE
         return successors
@@ -392,17 +395,21 @@ def cornersHeuristic(state, problem):
     while len(corners) > 0:
         points = list()
         minCost = 1000000
+
         for x in corners:
             cost = util.manhattanDistance(currentPosition, x)
             if minCost > cost:
                 points.clear()
                 points.append(x)
                 minCost = cost
+
+        newCorner = points[0]
         distance = distance + util.manhattanDistance(currentPosition, points[0])
         currentPosition = points[0]
         cornersList = list(corners)
         cornersList.remove(points[0])
         corners = tuple(cornersList)
+
     return distance
 
 class AStarCornersAgent(SearchAgent):

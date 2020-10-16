@@ -19,6 +19,7 @@ Pacman agents (in searchAgents.py).
 
 import util
 
+
 class SearchProblem:
     """
     This class outlines the structure of a search problem, but doesn't implement
@@ -72,18 +73,6 @@ def tinyMazeSearch(problem):
     w = Directions.WEST
     return [s, s, w, s, w, w, s, w]
 
-def depthFirstSearchHelper(problem, location, explored, currentPath):
-    if problem.isGoalState(location):
-        return currentPath
-    explored.append(location)
-    for nextElement in problem.getSuccessors(location):
-        if nextElement[0] not in explored:
-            result = depthFirstSearchHelper(problem, nextElement[0], explored, currentPath + [nextElement[1]])
-            if len(result) > 0:
-                return result
-
-    return []
-
 
 def depthFirstSearch(problem):
     """
@@ -106,9 +95,33 @@ def depthFirstSearch(problem):
     startingNode = problem.getStartState()
     if problem.isGoalState(startingNode):
         return []
-    explored=[]
-    currentPath=[]
-    return depthFirstSearchHelper(problem, startingNode, explored, currentPath)
+
+    stack = util.Stack()  # Create a stack for DFS.
+
+    visited = []  # Create a list to keep track of explored/visited nodes.
+
+    # Beginning node of the graph.
+    start = (startingNode, [])
+    stack.push(start)
+
+    """ 
+    visit current node if is not explored before and find its
+    children (push those into the stack) 
+    """
+
+    while not stack.isEmpty():
+        element = stack.pop()
+        location = element[0]
+        path = element[1]
+
+        if location not in visited:
+            visited.append(location)
+            if problem.isGoalState(location):
+                return path
+
+            for nextElement in problem.getSuccessors(location):
+                stack.push((nextElement[0], path + [nextElement[1]]))
+    util.raiseNotDefined()
 
 
 def breadthFirstSearch(problem):
@@ -121,58 +134,45 @@ def breadthFirstSearch(problem):
     "*** YOUR CODE HERE ***"
 
     queue = util.Queue()
-    explored = {}
-    parent={}
-    start = problem.getStartState()
+    visited = []
+    start = (problem.getStartState(), [])
     queue.push(start)
-    explored[start] = True
-    parent[start[0]] = None
+
     while not queue.isEmpty():
-        location = queue.pop()
-        if problem.isGoalState(location):
-            temp = [location,'']
-            path=[]
-            while temp != None:                    
-                temp = parent.get(temp[0])
-                if temp != None:
-                    path.append(temp[1])
-            path.reverse()
-            return path
-        for nextNode, action, cost in list(problem.getSuccessors(location)):
-            if nextNode not in explored:
-                explored[nextNode] = True
-                parent[nextNode] = [location, action]
-                queue.push(nextNode)
+        location, path = queue.pop()
+
+        if location not in visited:
+            visited.append(location)
+            if problem.isGoalState(location):
+                return path
+            for nextNode, action, cost in list(problem.getSuccessors(location)):
+                if nextNode not in visited:
+                    queue.push((nextNode, path + [action]))
     return []
 
 def uniformCostSearch(problem):
+
     '''*** YOUR CODE HERE ***'''
 
-    pq = util.PriorityQueue()
-    pq.push(problem.getStartState(), 0)
-    explored = {}
-    cost={}
-    parent={}
-    parent[problem.getStartState()] = None
-    cost[problem.getStartState()] = 0
-    while pq.isEmpty() == False:
-        node = pq.pop()
-        if problem.isGoalState(node):
-            path=[]
-            while node != None:
-                temp = parent[node]
-                if temp != None:
-                    path.append(temp[1])
-                    node = temp[0]
-                else:
-                    node = None
-            path.reverse()
-            return path
-        for i in problem.getSuccessors(node):
-            if i[0] not in cost or (i[0] in cost and cost[i[0]] > cost[node] + i[2]):
-                parent[i[0]] = (node, i[1])
-                cost[i[0]] = cost[node] + i[2]
-                pq.push(i[0], cost[i[0]])
+    pQueue = util.PriorityQueue()
+    pQueue.push((problem.getStartState(), [], 0), 0)
+    closed = {}
+    goal = False
+
+    while not goal:
+        if pQueue.isEmpty():
+            return False
+        node = pQueue.pop()
+        closed[node[0]] = node[2]
+        if problem.isGoalState(node[0]):
+            return node[1]
+        for i in problem.getSuccessors(node[0]):
+            if i[0] not in closed or (i[0] in closed and closed[i[0]] > node[2] + i[2]):
+                temp = list(node[1])
+                temp.append(i[1])
+                cost = node[2] + i[2]
+                closed[i[0]] = cost
+                pQueue.push((i[0], temp, cost), cost)
 
     util.raiseNotDefined()
 
@@ -183,34 +183,35 @@ def nullHeuristic(state, problem=None):
     """
     return 0
 
-def aStarSearchHelper(problem, heuristic, pq):
-    explored = {}
-    while pq.isEmpty() == False:
-        top = pq.pop()
-        if top[0] not in explored:
-            explored[top[0]] = True
-            if problem.isGoalState(top[0]):
-                return top[1]
-            for next in problem.getSuccessors(top[0]):
-                newAction = top[1] + [next[1]]
-                cost = top[2] + next[2]
-                heuristicCost = cost + heuristic(next[0],problem)
-                pq.push((next[0], newAction, cost), heuristicCost)
 
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
     startingNode = problem.getStartState()
     if problem.isGoalState(startingNode):
         return []
-    pq = util.PriorityQueue()
-    pq.push((startingNode, [], 0), 0)
-    return aStarSearchHelper(problem, heuristic, pq)
+    visitedNodes = []
+    pQueue = util.PriorityQueue()
+    # ((coordinate/node , action to current node , cost to current node),priority)
+    pQueue.push((startingNode, [], 0), 0)
+
+    while not pQueue.isEmpty():
+        currentNode, actions, prevCost = pQueue.pop()
+        if currentNode not in visitedNodes:
+            visitedNodes.append(currentNode)
+            if problem.isGoalState(currentNode):
+                return actions
+            for nextNode, action, cost in problem.getSuccessors(currentNode):
+                newAction = actions + [action]
+                newCostToNode = prevCost + cost
+                heuristicCost = newCostToNode + heuristic(nextNode,problem)
+                pQueue.push((nextNode, newAction, newCostToNode),heuristicCost)
+
 
 def randomyu(problem, heuristic=nullHeuristic):
     pQueue = util.PriorityQueue()
     start = problem.getStartState()
     pQueue.push((start, []), heuristic(start, problem))
-    explored = []
+    visited = []
     while True:
         if pQueue.isEmpty():
             return False
@@ -218,10 +219,10 @@ def randomyu(problem, heuristic=nullHeuristic):
         if problem.isGoalState(state):
             return path
 
-        if state not in explored:
-            explored.append(state)
+        if state not in visited:
+            visited.append(state)
         for successor, direction, cost in problem.getSuccessors(state):
-            if successor not in explored:
+            if successor not in visited:
                 neighborCost = path + [direction]
                 pathCost = problem.getCostOfActions(neighborCost) + heuristic(successor, problem)
                 pQueue.push((successor, neighborCost), pathCost)
